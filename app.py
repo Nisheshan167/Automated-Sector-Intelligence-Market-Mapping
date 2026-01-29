@@ -20,20 +20,11 @@ st.title("📊 BDC Sector Analysis & Capital Preservation Tool")
 # ---------------- SIDEBAR ----------------
 st.sidebar.header("Stock Selection")
 
-num_stocks = st.sidebar.slider(
-    "Number of stocks",
-    min_value=1,
-    max_value=len(AVAILABLE_TICKERS),
-    value=4
-)
-
 tickers = st.sidebar.multiselect(
-    "Select tickers",
+    "Select BDC tickers",
     AVAILABLE_TICKERS,
-    default=AVAILABLE_TICKERS[:num_stocks]
+    default=AVAILABLE_TICKERS
 )
-
-tickers = tickers[:num_stocks]
 
 if len(tickers) == 0:
     st.warning("Please select at least one ticker.")
@@ -44,8 +35,12 @@ if len(tickers) == 0:
 def fetch_data(ticker):
     t = yf.Ticker(ticker)
 
-    # IMPORTANT: auto_adjust=False ensures "Close" is the raw close (not adjusted)
-    prices = t.history(start=START_DATE, end=END_DATE, auto_adjust=False)[["Close"]]
+    # RAW close prices (not adjusted)
+    prices = t.history(
+        start=START_DATE,
+        end=END_DATE,
+        auto_adjust=False
+    )[["Close"]]
     prices = prices.rename(columns={"Close": "price"})
 
     div = t.dividends.rename("dividend_per_share")
@@ -57,8 +52,8 @@ def fetch_data(ticker):
 
 
 def annualized_vol(df):
-    rets = df["price"].pct_change().dropna()
-    return rets.std() * np.sqrt(TRADING_DAYS)
+    returns = df["price"].pct_change().dropna()
+    return returns.std() * np.sqrt(TRADING_DAYS)
 
 
 def total_return_div_reinvest(df):
@@ -66,7 +61,7 @@ def total_return_div_reinvest(df):
     start_price = df["price"].iloc[0]
 
     for _, row in df.iterrows():
-        if row["dividend_per_share"] > 0:
+        if row["dividend_per_share"] > 0 and row["price"] > 0:
             shares += (shares * row["dividend_per_share"]) / row["price"]
 
     end_price = df["price"].iloc[-1]
@@ -104,7 +99,7 @@ st.dataframe(
     })
 )
 
-# ---------------- VOLATILITY GRAPH ----------------
+# ---------------- VOLATILITY BAR CHART ----------------
 st.subheader("📉 Annualized Volatility Comparison")
 
 fig, ax = plt.subplots()
@@ -122,13 +117,13 @@ highest_vol = metrics_df["Annualized Volatility"].idxmax()
 
 st.markdown(
     f"""
-**Interpretation:**
-- 🟢 **Lowest volatility:** `{lowest_vol}` → most defensive profile  
-- 🔴 **Highest volatility:** `{highest_vol}` → higher risk in stressed markets  
+**Interpretation**
+- 🟢 **Lowest volatility:** `{lowest_vol}` → strongest capital-preservation profile  
+- 🔴 **Highest volatility:** `{highest_vol}` → higher downside risk in stressed markets  
 """
 )
 
-# ---------------- CORRELATION ----------------
+# ---------------- CORRELATION HEATMAP ----------------
 st.subheader("🔗 Correlation Matrix (Daily CLOSE Returns)")
 
 returns_df = pd.DataFrame(returns).dropna()
@@ -150,7 +145,7 @@ ax.set_title("Correlation Heatmap")
 plt.colorbar(im)
 st.pyplot(fig)
 
-# ---------------- VOLATILITY REGIME ----------------
+# ---------------- MARKET REGIME ----------------
 st.subheader("⚠️ Market Regime")
 
 avg_vol = metrics_df["Annualized Volatility"].mean()
@@ -166,7 +161,7 @@ You are an investment analyst.
 
 Market regime: {regime}
 
-Metrics table:
+Metrics:
 {metrics_df.to_string()}
 
 Question:
