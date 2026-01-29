@@ -35,13 +35,11 @@ if len(tickers) == 0:
 def fetch_data(ticker):
     t = yf.Ticker(ticker)
 
-    # RAW close prices (not adjusted)
     prices = t.history(
         start=START_DATE,
         end=END_DATE,
         auto_adjust=False
-    )[["Close"]]
-    prices = prices.rename(columns={"Close": "price"})
+    )[["Close"]].rename(columns={"Close": "price"})
 
     div = t.dividends.rename("dividend_per_share")
 
@@ -107,7 +105,7 @@ metrics_df["Annualized Volatility"].sort_values().plot(
     kind="bar",
     ax=ax,
     ylabel="Annualized Volatility",
-    title="Volatility (Lower = Better for Capital Preservation)"
+    title="Volatility Comparison (Lower = Better for Capital Preservation)"
 )
 ax.yaxis.set_major_formatter(lambda x, _: f"{x:.0%}")
 st.pyplot(fig)
@@ -119,7 +117,7 @@ st.markdown(
     f"""
 **Interpretation**
 - 🟢 **Lowest volatility:** `{lowest_vol}` → strongest capital-preservation profile  
-- 🔴 **Highest volatility:** `{highest_vol}` → higher downside risk in stressed markets  
+- 🔴 **Highest volatility:** `{highest_vol}` → higher downside risk  
 """
 )
 
@@ -145,36 +143,54 @@ ax.set_title("Correlation Heatmap")
 plt.colorbar(im)
 st.pyplot(fig)
 
-# ---------------- MARKET REGIME ----------------
-st.subheader("⚠️ Market Regime")
+# ---------------- RULE-BASED RECOMMENDATION ----------------
+st.subheader("🧮 Capital Preservation Recommendation (Rule-Based)")
 
-avg_vol = metrics_df["Annualized Volatility"].mean()
-regime = "HIGH VOLATILITY" if avg_vol > 0.25 else "NORMAL VOLATILITY"
+ranked = metrics_df.sort_values(
+    ["Annualized Volatility", "Total Return (Div Reinvested)"],
+    ascending=[True, False]
+)
 
-st.markdown(f"**Detected Regime:** `{regime}`")
+recommended = ranked.index[0]
+rec_vol = ranked.loc[recommended, "Annualized Volatility"]
+rec_tr  = ranked.loc[recommended, "Total Return (Div Reinvested)"]
 
-# ---------------- AI INVESTMENT LOGIC ----------------
-st.subheader("🤖 AI Investment Logic")
+st.markdown(
+    f"""
+**Recommended ticker:** `{recommended}`  
+- Annualized volatility: **{rec_vol:.2%}**  
+- 5Y total return (dividends reinvested): **{rec_tr:.2%}**
+
+**Rule:** Lowest volatility → tie-break by higher total return.
+"""
+)
+
+# ---------------- AI EXPLANATION ----------------
+st.subheader("🤖 AI Explanation (Explanation-Only)")
 
 prompt = f"""
-You are an investment analyst. Your job is to EXPLAIN a recommendation that has already been selected by a rule-based model.
+You are an investment analyst.
 
-Market regime: {regime}
+A rule-based model has already selected **{recommended}** as the best BDC for capital preservation.
 
 Rule used:
-- Choose the ticker with the LOWEST annualized volatility over the period.
-- If there is a tie, prefer higher 5Y total return (dividends reinvested).
+- Primary: lowest annualized volatility
+- Secondary (tie-break): higher 5-year total return with dividends reinvested
 
-Model output:
-- Recommended ticker: {recommended}
-- Its annualized volatility: {rec_vol:.2%}
-- Its 5Y total return (div reinvested): {rec_tr:.2%}
-
-Peer metrics table:
+Metrics:
 {metrics_df.to_string()}
 
 Task:
-Explain why {recommended} is best suited for capital preservation in a high-volatility regime, using ONLY the metrics above.
+Explain why {recommended} is suitable for capital preservation based on these metrics.
 Write 6–8 concise bullet points.
-Do NOT claim another ticker has lower volatility.
+Do NOT contradict the rule-based result.
 """
+
+if st.button("Generate AI Explanation"):
+    with st.spinner("Generating explanation..."):
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+        )
+        st.markdown(response.choices[0].message.content)
