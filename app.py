@@ -43,11 +43,16 @@ if len(tickers) == 0:
 @st.cache_data
 def fetch_data(ticker):
     t = yf.Ticker(ticker)
-    prices = t.history(start=START_DATE, end=END_DATE)[["Close"]]
-    prices.columns = ["price"]
+
+    # IMPORTANT: auto_adjust=False ensures "Close" is the raw close (not adjusted)
+    prices = t.history(start=START_DATE, end=END_DATE, auto_adjust=False)[["Close"]]
+    prices = prices.rename(columns={"Close": "price"})
+
     div = t.dividends.rename("dividend_per_share")
+
     df = prices.join(div, how="left")
     df["dividend_per_share"] = df["dividend_per_share"].fillna(0.0)
+
     return df
 
 
