@@ -143,6 +143,46 @@ ax.set_title("Correlation Heatmap")
 plt.colorbar(im)
 st.pyplot(fig)
 
+# ---------------- CORRELATION INTERPRETATION ----------------
+st.subheader("🧠 Correlation Interpretation")
+
+# Average correlation per stock (exclude self-correlation)
+avg_corr_per_stock = corr.apply(
+    lambda row: row.drop(row.name).mean(),
+    axis=1
+)
+
+most_corr_pair = corr.where(~np.eye(len(corr), dtype=bool)).stack().idxmax()
+least_corr_pair = corr.where(~np.eye(len(corr), dtype=bool)).stack().idxmin()
+
+overall_avg_corr = (
+    corr.where(~np.eye(len(corr), dtype=bool))
+        .stack()
+        .mean()
+)
+
+st.markdown("**Key observations based on computed correlations:**")
+
+# Per-stock interpretation
+for ticker, val in avg_corr_per_stock.items():
+    st.markdown(
+        f"- **{ticker}** average correlation with peers: **{val:.2f}** "
+        f"→ {'moves closely with the sector' if val > 0.7 else 'shows some diversification benefit' if val < 0.5 else 'moderate co-movement'}"
+    )
+
+st.markdown(
+    f"""
+- 🔗 **Most correlated pair:** `{most_corr_pair[0]}` & `{most_corr_pair[1]}`  
+  (correlation = **{corr.loc[most_corr_pair]:.2f}**) → tend to move together
+
+- 🧩 **Least correlated pair:** `{least_corr_pair[0]}` & `{least_corr_pair[1]}`  
+  (correlation = **{corr.loc[least_corr_pair]:.2f}**) → better diversification between them
+
+- 📊 **Overall average correlation across selected BDCs:** **{overall_avg_corr:.2f}**  
+  → indicates {'a tightly coupled sector' if overall_avg_corr > 0.7 else 'partial diversification within the sector'}
+"""
+)
+
 # ---------------- RULE-BASED RECOMMENDATION ----------------
 st.subheader("🧮 Capital Preservation Recommendation (Rule-Based)")
 
