@@ -98,7 +98,7 @@ st.dataframe(
 )
 
 # ---------------- VOLATILITY BAR CHART ----------------
-st.subheader("📉 Annualized Volatility Comparison")
+st.subheader(" Annualized Volatility Comparison")
 
 fig, ax = plt.subplots()
 metrics_df["Annualized Volatility"].sort_values().plot(
@@ -116,8 +116,8 @@ highest_vol = metrics_df["Annualized Volatility"].idxmax()
 st.markdown(
     f"""
 **Interpretation**
-- 🟢 **Lowest volatility:** `{lowest_vol}` → strongest capital-preservation profile  
-- 🔴 **Highest volatility:** `{highest_vol}` → higher downside risk  
+-  **Lowest volatility:** `{lowest_vol}` → strongest capital-preservation profile  
+-  **Highest volatility:** `{highest_vol}` → higher downside risk  
 """
 )
 
@@ -144,7 +144,7 @@ plt.colorbar(im)
 st.pyplot(fig)
 
 # ---------------- CORRELATION INTERPRETATION ----------------
-st.subheader("🧠 Correlation Interpretation")
+st.subheader(" Correlation Interpretation")
 
 # Average correlation per stock (exclude self-correlation)
 avg_corr_per_stock = corr.apply(
@@ -172,19 +172,19 @@ for ticker, val in avg_corr_per_stock.items():
 
 st.markdown(
     f"""
-- 🔗 **Most correlated pair:** `{most_corr_pair[0]}` & `{most_corr_pair[1]}`  
+-  **Most correlated pair:** `{most_corr_pair[0]}` & `{most_corr_pair[1]}`  
   (correlation = **{corr.loc[most_corr_pair]:.2f}**) → tend to move together
 
-- 🧩 **Least correlated pair:** `{least_corr_pair[0]}` & `{least_corr_pair[1]}`  
+-  **Least correlated pair:** `{least_corr_pair[0]}` & `{least_corr_pair[1]}`  
   (correlation = **{corr.loc[least_corr_pair]:.2f}**) → better diversification between them
 
-- 📊 **Overall average correlation across selected BDCs:** **{overall_avg_corr:.2f}**  
+-  **Overall average correlation across selected BDCs:** **{overall_avg_corr:.2f}**  
   → indicates {'a tightly coupled sector' if overall_avg_corr > 0.7 else 'partial diversification within the sector'}
 """
 )
 
 # ---------------- RULE-BASED RECOMMENDATION ----------------
-st.subheader("🧮 Capital Preservation Recommendation (Rule-Based)")
+st.subheader(" Capital Preservation Recommendation (Rule-Based)")
 
 ranked = metrics_df.sort_values(
     ["Annualized Volatility", "Total Return (Div Reinvested)"],
