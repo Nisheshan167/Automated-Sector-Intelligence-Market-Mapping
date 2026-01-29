@@ -157,24 +157,24 @@ st.markdown(f"**Detected Regime:** `{regime}`")
 st.subheader("🤖 AI Investment Logic")
 
 prompt = f"""
-You are an investment analyst.
+You are an investment analyst. Your job is to EXPLAIN a recommendation that has already been selected by a rule-based model.
 
 Market regime: {regime}
 
-Metrics:
+Rule used:
+- Choose the ticker with the LOWEST annualized volatility over the period.
+- If there is a tie, prefer higher 5Y total return (dividends reinvested).
+
+Model output:
+- Recommended ticker: {recommended}
+- Its annualized volatility: {rec_vol:.2%}
+- Its 5Y total return (div reinvested): {rec_tr:.2%}
+
+Peer metrics table:
 {metrics_df.to_string()}
 
-Question:
-Which stock is best suited for capital preservation in a high-volatility regime and why?
-Focus on volatility, downside risk, and dividend stability.
-Answer in 6–8 concise bullet points.
+Task:
+Explain why {recommended} is best suited for capital preservation in a high-volatility regime, using ONLY the metrics above.
+Write 6–8 concise bullet points.
+Do NOT claim another ticker has lower volatility.
 """
-
-if st.button("Generate AI Explanation"):
-    with st.spinner("Generating explanation..."):
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
-        )
-        st.markdown(response.choices[0].message.content)
