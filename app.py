@@ -3,7 +3,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import openai
+from openai import OpenAI
 
 # ---------------- CONFIG ----------------
 START_DATE = "2021-01-29"
@@ -12,7 +12,7 @@ TRADING_DAYS = 252
 
 AVAILABLE_TICKERS = ["MAIN", "ARCC", "HTGC", "OBDC"]
 
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 st.set_page_config(page_title="BDC Analyzer", layout="wide")
 st.title("📊 BDC Sector Analysis & Capital Preservation Tool")
@@ -33,7 +33,10 @@ tickers = st.sidebar.multiselect(
     default=AVAILABLE_TICKERS[:num_stocks]
 )
 
+tickers = tickers[:num_stocks]
+
 if len(tickers) == 0:
+    st.warning("Please select at least one ticker.")
     st.stop()
 
 # ---------------- DATA FUNCTIONS ----------------
@@ -68,33 +71,65 @@ def total_return_div_reinvest(df):
 # ---------------- CALCULATIONS ----------------
 data = {t: fetch_data(t) for t in tickers}
 
-metrics = []
-returns_df = {}
+rows = []
+returns = {}
 
 for t in tickers:
     df = data[t]
-    metrics.append({
+    rows.append({
         "Ticker": t,
         "Annualized Volatility": annualized_vol(df),
         "Total Return (Div Reinvested)": total_return_div_reinvest(df),
         "Start Price": df["price"].iloc[0],
-        "End Price": df["price"].iloc[-1]
+        "End Price": df["price"].iloc[-1],
     })
-    returns_df[t] = df["price"].pct_change()
+    returns[t] = df["price"].pct_change()
 
-metrics_df = pd.DataFrame(metrics).set_index("Ticker")
+metrics_df = pd.DataFrame(rows).set_index("Ticker")
 
-# ---------------- DISPLAY METRICS ----------------
+# ---------------- METRICS TABLE ----------------
 st.subheader("📈 Performance Metrics")
-st.dataframe(metrics_df.style.format("{:.2%}"))
+
+st.dataframe(
+    metrics_df.style.format({
+        "Annualized Volatility": "{:.2%}",
+        "Total Return (Div Reinvested)": "{:.2%}",
+        "Start Price": "{:.2f}",
+        "End Price": "{:.2f}",
+    })
+)
+
+# ---------------- VOLATILITY GRAPH ----------------
+st.subheader("📉 Annualized Volatility Comparison")
+
+fig, ax = plt.subplots()
+metrics_df["Annualized Volatility"].sort_values().plot(
+    kind="bar",
+    ax=ax,
+    ylabel="Annualized Volatility",
+    title="Volatility (Lower = Better for Capital Preservation)"
+)
+ax.yaxis.set_major_formatter(lambda x, _: f"{x:.0%}")
+st.pyplot(fig)
+
+lowest_vol = metrics_df["Annualized Volatility"].idxmin()
+highest_vol = metrics_df["Annualized Volatility"].idxmax()
+
+st.markdown(
+    f"""
+**Interpretation:**
+- 🟢 **Lowest volatility:** `{lowest_vol}` → most defensive profile  
+- 🔴 **Highest volatility:** `{highest_vol}` → higher risk in stressed markets  
+"""
+)
 
 # ---------------- CORRELATION ----------------
 st.subheader("🔗 Correlation Matrix (Daily CLOSE Returns)")
 
-returns_df = pd.DataFrame(returns_df).dropna()
+returns_df = pd.DataFrame(returns).dropna()
 corr = returns_df.corr()
 
-fig, ax = plt.subplots(figsize=(5, 4))
+fig, ax = plt.subplots()
 im = ax.imshow(corr.values)
 
 ax.set_xticks(range(len(corr.columns)))
@@ -106,45 +141,40 @@ for i in range(len(corr)):
     for j in range(len(corr)):
         ax.text(j, i, f"{corr.iloc[i, j]:.2f}", ha="center", va="center")
 
-plt.title("Correlation Heatmap")
+ax.set_title("Correlation Heatmap")
 plt.colorbar(im)
 st.pyplot(fig)
 
 # ---------------- VOLATILITY REGIME ----------------
-st.subheader("⚠️ Volatility Regime")
+st.subheader("⚠️ Market Regime")
 
 avg_vol = metrics_df["Annualized Volatility"].mean()
-
 regime = "HIGH VOLATILITY" if avg_vol > 0.25 else "NORMAL VOLATILITY"
+
 st.markdown(f"**Detected Regime:** `{regime}`")
 
 # ---------------- AI INVESTMENT LOGIC ----------------
 st.subheader("🤖 AI Investment Logic")
-
-best_stock = metrics_df.sort_values(
-    ["Annualized Volatility", "Total Return (Div Reinvested)"],
-    ascending=[True, False]
-).index[0]
 
 prompt = f"""
 You are an investment analyst.
 
 Market regime: {regime}
 
-Metrics:
+Metrics table:
 {metrics_df.to_string()}
 
 Question:
 Which stock is best suited for capital preservation in a high-volatility regime and why?
-Focus on volatility, drawdowns, and dividend stability.
-Keep answer concise (6–8 bullets).
+Focus on volatility, downside risk, and dividend stability.
+Answer in 6–8 concise bullet points.
 """
 
 if st.button("Generate AI Explanation"):
-    with st.spinner("Thinking..."):
-        response = openai.ChatCompletion.create(
+    with st.spinner("Generating explanation..."):
+        response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.3
+            temperature=0.3,
         )
         st.markdown(response.choices[0].message.content)
