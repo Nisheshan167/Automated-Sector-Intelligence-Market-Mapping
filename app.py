@@ -118,6 +118,11 @@ st.markdown(
 **Interpretation**
 -  **Lowest volatility:** `{lowest_vol}` → strongest capital-preservation profile  
 -  **Highest volatility:** `{highest_vol}` → higher downside risk  
+
+**What the 5-year volatility and total return tell us**
+- **Volatility (risk / stability):** Annualized volatility summarises how widely daily prices have swung over the last 5 years. A lower value typically implies a **steadier path** and a smaller likelihood of large short-term drawdowns—useful when the goal is preserving capital.
+- **Total return (wealth outcome):** The reinvested total return shows the **end-to-end investor outcome** (price change plus compounding dividends). This matters because BDCs distribute a meaningful portion of returns as cash income; reinvestment captures the compounding effect rather than looking at price-only performance.
+- **Risk–return trade-off:** Read the two together: a name with **low volatility but acceptable total return** is generally better aligned to capital preservation than a higher-return peer that achieved it with much larger swings.
 """
 )
 
@@ -180,6 +185,11 @@ st.markdown(
 
 -  **Overall average correlation across selected BDCs:** **{overall_avg_corr:.2f}**  
   → indicates {'a tightly coupled sector' if overall_avg_corr > 0.7 else 'partial diversification within the sector'}
+
+**How this shapes the sector view (portfolio implication)**
+- **Common factor exposure:** Correlations in this range suggest these BDCs are influenced by similar macro drivers (credit conditions, risk-on/risk-off sentiment, funding costs). As a result, they can **move in the same direction during stress**, even if business models differ.
+- **Diversification is limited but not zero:** Correlations well below 1.0 imply there is **some dispersion**, but not enough to rely on these four names alone as a strong hedge against each other in a severe drawdown.
+- **Practical takeaway:** Holding multiple BDCs may smooth idiosyncratic risk a bit, but meaningful risk reduction still requires diversification **outside** the BDC sleeve (e.g., different asset classes/strategies) rather than assuming these names will offset each other.
 """
 )
 
@@ -226,11 +236,11 @@ Write 6–8 concise bullet points.
 Do NOT contradict the rule-based result.
 """
 
-if st.button("Generate AI Explanation"):
-    with st.spinner("Generating explanation..."):
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
-        )
-        st.markdown(response.choices[0].message.content)
+with st.spinner("Generating explanation..."):
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.3,
+    )
+
+st.markdown(response.choices[0].message.content)
